@@ -1,76 +1,92 @@
 
 
-class SudokuSolver():
-    
-    def possible(self, board, y, x, n):
-        """Brute force checker.
-        checks n's row, col, and box for itself, if n is not present, return True.
-        Parameters:
-            y is the board row position
-            x is the board col position
-            n is the number to check
-            """
-        
-        # ================ check col position for n ================
-        for col in range(9):
-            if board[y][col] == n:
-                return False
+class SudokuSolver:
+    def __init__(self, board):
+
+        self.sqrt = int(pow(len(board), 0.5))
+
+        self.columns = []
+        self.rows = []
+        self.grids = []
+
+        self._possible( board )
+
+
+    def _possible(self, board):
+        "use sets of possible numbers"
+
         # ================ check row for n =========================
+        for i in range(len(board)):
+            h = set( range(1, 10) )
+            for j in range(len(board)):
+                if board[i][j] in h:
+                    h.remove(board[i][j])
+            self.rows.append(h)
 
-        for row in range(9):
-            if board[row][x] == n:
-                return False
+        # ================ check col position for n ================
+        for i in range(len(board)):
+            h = set( range(1, 10) )
+            for j in range(len(board)):
+                if board[j][i] in h:
+                    h.remove(board[j][i])
+            self.columns.append(h)
 
-        # ================ group the rows/cols by box ==============
-        # find start index for the box
-        box_start_col = (x//3)*3
-        box_start_row = (y//3)*3
-        for box_row in range(3):
-            for box_col in range(3):
-                if board[box_start_row + box_row][box_start_col + box_col] == n:
-                    return False
+        # ================ group the rows/cols by grid ==============
+        for i in range(0, len(board), self.sqrt):
+            for j in range(0, len(board), self.sqrt):
+                h = set( range(1, 10) )
+                for x in range(i, i + self.sqrt):
+                    for y in range(j, j + self.sqrt):
+                        if board[x][y] in h:
+                            h.remove(board[x][y])
+                self.grids.append(h)
 
-        return True 
 
-    
-    def solve(self, board):
-        """Try number 1-9 in each square in the board to see if possible.
+    def solve(self, row=0, col=0 ):
+        """
+        Try number 1-9 in each square in the board to see if possible.
         return first solved board.
 
-        recursive function that tries one square at a time, if the number is possible it is set as the value
-        if the number is not possible the value is placed at zero
-        built to solve more than one solution 
+        Create set of possible numbers for each row and col and grid.
+        Modify board in-place with recursive helper.
+        Unsuccessful combination forces backtrack.
         """
-        
-        for row in range(9):
-            for col in range(9):
 
-                min_empty = 5
-                # if position is empty
-                # num empty rows < min_empty
-                # num empty cols < min_empty
-                # num empty cells in box < min_empty
+        if row == 9 and col == 0:
+            return True
 
-                if board[row][col] == 0 and \
-                    (board[row].count(0) < min_empty or \
-                    [board[row][col] for col in range(len(board[row]))].count(0) < min_empty or \
-                    ([board[row//3*3 + r][col] for r in range(len(board[row])//3)] + 
-                    [board[row][col//3*3 + c] for c in range(len(board[row])//3)]).count(0) < min_empty):
+        nx_row = row + (col + 1) // len(board)
+        nx_col = (col + 1) % len(board)
+        if board[row][col] != 0:
+            return self.solve(nx_row, nx_col)
 
-                    for n in range(1,10):
-                        if self.possible(board, row, col, n):
-                            # set value to n and solve again
-                            board[row][col] = n
-                            board = self.solve(board)
-                            board[row][col] = 0
+        # grid number calculation
+        grid = (row // self.sqrt) * self.sqrt + col // self.sqrt
+        valid_set = self.rows[row].intersection(self.columns[col].intersection(self.grids[grid]))
 
-                    return board
-        
-        # "recursive" function is actually just printing solutions as they come
-        # need to optimize to have end point rather than just "every possiblity tried".
-        print(board)
-        return board
+        # no solution, return false
+        if not valid_set:
+            return False
 
+        for num in valid_set:
+            # set board position to first number
+            board[row][col] = num
+
+            self.rows[row].remove(num)
+            self.columns[col].remove(num)
+            self.grids[grid].remove(num)
+
+            # if valid set on all recursions, return True, else backtrack
+            if self.solve(nx_row, nx_col):
+                return True
+
+            self.rows[row].add(num)
+            self.columns[col].add(num)
+            self.grids[grid].add(num)
+
+        # if it gets this far none of valid_set work. Backtrack.
+        board[row][col] = 0
+        return False
 
 
 if __name__ == "__main__":
